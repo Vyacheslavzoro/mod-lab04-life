@@ -69,10 +69,10 @@ namespace Life.Tests
 
             // Тестируем несколько значений плотности
             var testCases = new[] {
-        new { Density = 0.1, ExpectedMin = 150, ExpectedMax = 350 },
-        new { Density = 0.5, ExpectedMin = 1000, ExpectedMax = 1500 },
-        new { Density = 0.9, ExpectedMin = 2000, ExpectedMax = 2500 }
-    };
+            new { Density = 0.1, ExpectedMin = 150, ExpectedMax = 350 },
+            new { Density = 0.5, ExpectedMin = 1000, ExpectedMax = 1500 },
+            new { Density = 0.9, ExpectedMin = 2000, ExpectedMax = 2500 }
+        };
 
             foreach (var testCase in testCases)
             {
