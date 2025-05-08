@@ -4,5 +4,10 @@
   "CellSize": 1,
   "LiveDensity": 0.3,
   "Delay": 300,
-  "LoadFile": "glider.txt"
+  "LoadFiles": [
+    "block.txt",
+    "blinker.txt",
+    "beacon.txt",
+    "glider.txt"
+  ]
 }
