@@ -265,8 +265,21 @@ namespace cli_life
         /// Сохраняет текущее состояние в файл
         /// </summary>
         /// <param name="filePath">Путь к файлу</param>
-        public void Save(string filePath)
+        public void Save()
         {
+            // Указываем путь относительно текущего каталога проекта
+            string projectDir = Path.Combine(Directory.GetCurrentDirectory(), "Life");
+
+            // Проверяем, существует ли директория
+            if (!Directory.Exists(projectDir))
+            {
+                Directory.CreateDirectory(projectDir); // Если нет — создаем
+            }
+
+            // Формируем полный путь к файлу
+            string dataFilePath = Path.Combine(projectDir, "data.txt");
+
+            // Собираем строки для сохранения
             var lines = new List<string>();
             for (int y = 0; y < Rows; y++)
             {
@@ -275,8 +288,19 @@ namespace cli_life
                     line[x] = Cells[x, y].IsAlive ? '*' : ' ';
                 lines.Add(new string(line));
             }
-            File.WriteAllLines(filePath, lines);
+
+            // Сохраняем файл
+            try
+            {
+                File.WriteAllText(dataFilePath, string.Join(Environment.NewLine, lines));
+                Console.WriteLine($"Файл успешно сохранен по пути: {dataFilePath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при сохранении файла: {ex.Message}");
+            }
         }
+
 
         /// <summary>
         /// Загружает состояние из файла
@@ -344,10 +368,12 @@ namespace cli_life
         public List<int> PopulationHistory { get; set; } = new();
     }
 
+
+
     public class Program
     {
         private static List<SimulationResult> results = new();
-        private static readonly double[] Densities = { 0.1, 0.3, 0.5, 0.7, 0.9 };
+        private static readonly double[] Densities = {0.1, 0.3, 0.5, 0.6, 0.7 };
 
         static void RunSimulation(double density)
         {
@@ -378,7 +404,7 @@ namespace cli_life
         static void SaveResults()
         {
             // Сохранение сырых данных
-            using var writer = new StreamWriter("data.txt");
+            using var writer = new StreamWriter("../../../data.txt");
             writer.WriteLine("Generation," + string.Join(",", Densities.Select(d => $"Density {d}")));
 
             int maxGen = results.Max(r => r.PopulationHistory.Count);
@@ -402,7 +428,7 @@ namespace cli_life
             plt.YLabel("Количество живых клеток");
             plt.Legend.IsVisible = true;
 
-            var colors = new[] { Colors.Blue, Colors.Green, Colors.Red, Colors.Orange, Colors.Purple };
+            var colors = new[] { Colors.Green, Colors.Red, Colors.Orange, Colors.Purple, Colors.Blue };
 
             for (int i = 0; i < results.Count; i++)
             {
@@ -418,7 +444,7 @@ namespace cli_life
                 scatter.MarkerSize = 0;
             }
 
-            plt.SavePng("plot.png", 1200, 800);
+            plt.SavePng("../../../plot.png", 1200, 800);
         }
 
         static void Main(string[] args)
@@ -428,198 +454,8 @@ namespace cli_life
                 RunSimulation(density);
             }
             SaveResults();
+
             Console.WriteLine("Анализ завершен. Результаты сохранены в data.txt и plot.png");
         }
     }
 }
-
-    
-    /*
-    public class Program
-    {
-        private static List<int> populationHistory = new();
-        private static int stableGenerations;
-        static Board board;
-        static Config config;
-
-        public static Config LoadConfig(string configPath)
-        {
-            if (File.Exists(configPath))
-            {
-                var json = File.ReadAllText(configPath);
-                return JsonSerializer.Deserialize<Config>(json) ?? new Config();
-            }
-            return new Config();
-        }
-
-        /// <summary>
-        /// Загружает конфигурацию из файла
-        /// </summary>
-        static void LoadConfig()
-        {
-            string configPath = "config.json";
-            if (File.Exists(configPath))
-            {
-                var json = File.ReadAllText(configPath);
-                config = JsonSerializer.Deserialize<Config>(json) ?? new Config();
-            }
-            else
-            {
-                config = new Config();
-            }
-            stableGenerations = config.StableGenerations;
-        }
-
-        /// <summary>
-        /// Инициализирует игровое поле
-        /// </summary>
-        static void InitializeBoard()
-        {
-            board = new Board(config.Width, config.Height, config.CellSize);
-            if (!string.IsNullOrEmpty(config.LoadFile) && File.Exists(config.LoadFile))
-            {
-                board.Load(config.LoadFile);
-            }
-            else
-            {
-                board.Randomize(config.LiveDensity);
-            }
-        }
-
-        /// <summary>
-        /// Отрисовывает текущее состояние поля
-        /// </summary>
-        static void Render()
-        {
-            Console.SetCursorPosition(0, 0);
-            for (int row = 0; row < board.Rows; row++)
-            {
-                for (int col = 0; col < board.Columns; col++)
-                {
-                    var cell = board.Cells[col, row];
-                    Console.Write(cell.IsAlive ? '*' : ' ');
-                }
-                Console.WriteLine();
-            }
-        }
-
-        /// <summary>
-        /// Анализирует и выводит информацию о фигурах
-        /// </summary>
-        static void AnalyzeAndReport()
-        {
-            var figures = FigureAnalyzer.FindAllFigures(board);
-            var counts = new Dictionary<string, int>
-            {
-                ["Block"] = 0,
-                ["Blinker"] = 0,
-                ["Beacon"] = 0,
-                ["Glider"] = 0,
-                ["Unknown"] = 0
-            };
-
-            foreach (var figure in figures)
-            {
-                string type = FigureClassifier.Classify(figure);
-                counts[type]++;
-            }
-
-            Console.WriteLine("\nРезультаты анализа:");
-            foreach (var entry in counts)
-                Console.WriteLine($"{entry.Key}: {entry.Value}");
-        }
-
-        /// <summary>
-        /// Проверяет достижение стабильного состояния
-        /// </summary>
-        /// <returns>True если состояние стабильно</returns>
-        public static bool IsStable()
-        {
-            if (populationHistory.Count < stableGenerations) return false;
-            var lastValues = populationHistory.TakeLast(stableGenerations);
-            return lastValues.All(v => v == lastValues.First());
-        }
-
-        /// <summary>
-        /// Сохраняет данные и строит график
-        /// </summary>
-        static void SaveDataAndPlot()
-        {
-            try
-            {
-                File.WriteAllLines("data.txt", populationHistory.Select((v, i) => $"{i}\t{v}"));
-
-                // Создаем новый объект Plot
-                var plt = new Plot();
-
-                // Создаем данные
-                double[] x = Enumerable.Range(0, populationHistory.Count)
-                    .Select(i => (double)i).ToArray();
-                double[] y = populationHistory.Select(v => (double)v).ToArray();
-
-                // Добавляем данные на график
-                var scatter = plt.Add.Scatter(x, y);
-                scatter.Color = Colors.Blue;
-                scatter.LineWidth = 2;
-
-                // Настраиваем оформление
-                plt.Title("Динамика численности клеток");
-                plt.XLabel("Поколение");
-                plt.YLabel("Живые клетки");
-
-                // Сохраняем с указанием размера изображения
-                plt.SavePng("plot.png", 800, 400);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Ошибка при построении графика: {ex.Message}");
-            }
-        }
-
-        static void Main(string[] args)
-        {
-            Console.CursorVisible = false;
-            LoadConfig();
-            InitializeBoard();
-
-            while (true)
-            {
-                Render();
-                board.Advance();
-                Thread.Sleep(config.Delay);
-
-                populationHistory.Add(board.AliveCount);
-
-                if (IsStable())
-                {
-                    Console.WriteLine($"\nСистема стабилизировалась на поколении {populationHistory.Count - stableGenerations}");
-                    break;
-                }
-
-                if (Console.KeyAvailable)
-                {
-                    var key = Console.ReadKey(true).Key;
-                    switch (key)
-                    {
-                        case ConsoleKey.S:
-                            board.Save("save.txt");
-                            Console.WriteLine("Состояние сохранено в save.txt");
-                            break;
-                        case ConsoleKey.L:
-                            board.Load("save.txt");
-                            Console.WriteLine("Состояние загружено из save.txt");
-                            break;
-                        case ConsoleKey.A:
-                            AnalyzeAndReport();
-                            break;
-                        case ConsoleKey.Escape:
-                            SaveDataAndPlot();
-                            return;
-                    }
-                }
-            }
-            SaveDataAndPlot();
-        }
-    }
-}
-    */
